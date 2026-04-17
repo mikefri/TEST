@@ -570,23 +570,19 @@
     }
   }
 
-  async function fetchWithProxy(url) {
-    const attempts = [
-      url,
-      `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
-    ];
-    for (const u of attempts) {
-      try {
-        const r = await fetch(u, { mode: 'cors' });
-        if (r.ok) {
-          const t = await r.text();
-          if (t.includes('#EXTM3U')) return t;
-        }
-      } catch(_) {}
-    }
-    throw new Error('Impossible de joindre le serveur. Vérifiez votre lien.');
+async function fetchWithProxy(url) {
+  // Passe par notre route API Vercel → pas de CORS ni de mixed content
+  const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+  
+  const r = await fetch(proxyUrl);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error || `Erreur serveur ${r.status}`);
   }
+  const text = await r.text();
+  if (!text.includes('#EXTM3U')) throw new Error('Fichier M3U invalide');
+  return text;
+}
 
   function parseM3U(text) {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
