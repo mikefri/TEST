@@ -42,6 +42,7 @@
     justify-content: center;
     z-index: 500;
     padding: 20px;
+    overflow-y: auto;
   }
 
   #setup-screen.hidden { display: none; }
@@ -52,10 +53,10 @@
     border-radius: 16px;
     padding: 40px;
     width: 100%;
-    max-width: 560px;
+    max-width: 580px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
     box-shadow: 0 0 60px rgba(230,57,70,.08);
   }
 
@@ -69,13 +70,40 @@
 
   .setup-logo span { color: var(--accent2); }
 
-  .setup-desc {
-    text-align: center;
-    color: var(--muted);
-    font-size: 14px;
-    line-height: 1.6;
+  /* ===== TABS ===== */
+  .tab-bar {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
   }
 
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .3px;
+  }
+
+  .tab-btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .tab-btn:not(.active):hover { color: var(--text); background: var(--border); }
+
+  .tab-panel { display: none; flex-direction: column; gap: 16px; }
+  .tab-panel.active { display: flex; }
+
+  /* ===== FIELDS ===== */
   .setup-field label {
     display: block;
     font-size: 12px;
@@ -106,6 +134,21 @@
     font-size: 13px;
     outline: none;
   }
+
+  .plain-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  .plain-input:focus { border-color: var(--accent); }
 
   .eye-btn {
     background: var(--bg);
@@ -377,9 +420,21 @@
     z-index: 300;
     align-items: center; justify-content: center;
     padding: 20px;
+    overflow-y: auto;
   }
 
   #change-modal.show { display: flex; }
+
+  /* Badge mode actif dans header */
+  #mode-badge {
+    font-size: 11px;
+    background: rgba(230,57,70,.15);
+    border: 1px solid rgba(230,57,70,.3);
+    color: var(--accent);
+    border-radius: 6px;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
 
   @media (max-width: 700px) {
     :root { --sidebar: 100%; }
@@ -398,33 +453,73 @@
   <div class="setup-box">
     <div class="setup-logo">📺 <span>IPTV</span> Player</div>
 
-    <p class="setup-desc">
-      Entrez votre lien M3U pour démarrer.<br>
-      Il sera sauvegardé <strong style="color:var(--text)">uniquement dans votre navigateur</strong>.
-    </p>
-
-    <div class="setup-field">
-      <label>Votres lien M3U / M3U Plus</label>
-      <div class="url-input-wrap">
-        <input type="password" id="setup-url"
-          placeholder="http://votreserveur.xyz:8080/get.php?username=…&password=…&type=m3u_plus" />
-        <button class="eye-btn" onclick="toggleEye('setup-url','eye1')" id="eye1" title="Afficher/Masquer">👁</button>
-      </div>
-      <div class="setup-hint">
-        Copiez-collez votre lien M3U tel quel, avec username, password et type=m3u_plus.
-      </div>
+    <!-- TABS -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-xtream-btn" onclick="switchTab('xtream')">🔑 Xtream API</button>
+      <button class="tab-btn"        id="tab-m3u-btn"    onclick="switchTab('m3u')">🔗 Lien M3U</button>
     </div>
 
-    <div class="setup-privacy">
-      <span class="ico">🔒</span>
-      <span>
-        Votre lien <strong>n'est jamais inscrit dans le code source</strong> de cette page.
-        Il est stocké localement dans votre navigateur (localStorage) et ne quitte pas votre appareil.
-        Vous pouvez le supprimer à tout moment avec le bouton 🚪.
-      </span>
+    <!-- PANEL XTREAM -->
+    <div class="tab-panel active" id="tab-xtream">
+      <div class="setup-field">
+        <label>Serveur / Host</label>
+        <input class="plain-input" type="text" id="setup-host"
+          placeholder="http://votreserveur.xyz:8080" />
+        <div class="setup-hint">L'adresse du serveur, avec le port si nécessaire.</div>
+      </div>
+
+      <div class="setup-field">
+        <label>Nom d'utilisateur</label>
+        <input class="plain-input" type="text" id="setup-user"
+          placeholder="votre_username" autocomplete="off" />
+      </div>
+
+      <div class="setup-field">
+        <label>Mot de passe</label>
+        <div class="url-input-wrap">
+          <input type="password" id="setup-pass"
+            placeholder="votre_password" autocomplete="off" />
+          <button class="eye-btn" onclick="toggleEye('setup-pass','eye-pass')" id="eye-pass">👁</button>
+        </div>
+      </div>
+
+      <div class="setup-privacy">
+        <span class="ico">🔒</span>
+        <span>
+          Vos identifiants <strong>restent uniquement dans votre navigateur</strong>
+          (localStorage). Ils ne sont jamais envoyés à nos serveurs ni à Claude.
+          Supprimez-les à tout moment avec 🚪.
+        </span>
+      </div>
+
+      <button class="btn-primary" onclick="startFromXtream()">▶&nbsp; Connexion Xtream</button>
     </div>
 
-    <button class="btn-primary" onclick="startFromSetup()">▶&nbsp; Charger ma liste</button>
+    <!-- PANEL M3U -->
+    <div class="tab-panel" id="tab-m3u">
+      <div class="setup-field">
+        <label>Lien M3U / M3U Plus</label>
+        <div class="url-input-wrap">
+          <input type="password" id="setup-url"
+            placeholder="http://votreserveur.xyz:8080/get.php?username=…&password=…&type=m3u_plus" />
+          <button class="eye-btn" onclick="toggleEye('setup-url','eye1')" id="eye1">👁</button>
+        </div>
+        <div class="setup-hint">
+          Copiez-collez votre lien M3U tel quel.
+        </div>
+      </div>
+
+      <div class="setup-privacy">
+        <span class="ico">🔒</span>
+        <span>
+          Votre lien <strong>n'est jamais inscrit dans le code source</strong> de cette page.
+          Il est stocké localement dans votre navigateur (localStorage) et ne quitte pas votre appareil.
+        </span>
+      </div>
+
+      <button class="btn-primary" onclick="startFromSetup()">▶&nbsp; Charger ma liste</button>
+    </div>
+
   </div>
 </div>
 
@@ -441,8 +536,9 @@
     <input type="text" id="search" placeholder="🔍 Rechercher une chaîne…" oninput="filterChannels()" />
   </div>
   <div class="header-right">
+    <span id="mode-badge" style="display:none"></span>
     <span id="status-bar">—</span>
-    <button class="icon-btn" onclick="openChangeModal()">⚙ Changer URL</button>
+    <button class="icon-btn" onclick="openChangeModal()">⚙ Changer</button>
     <button class="icon-btn" onclick="resetApp()" title="Supprimer et réinitialiser">🚪 Déconnexion</button>
   </div>
 </header>
@@ -453,7 +549,7 @@
     <div class="groups" id="groups"></div>
     <div class="channel-list" id="channel-list">
       <div style="padding:24px;text-align:center;color:var(--muted);font-size:13px;">
-        Configurez votre URL M3U pour démarrer.
+        Configurez votre accès pour démarrer.
       </div>
     </div>
   </aside>
@@ -478,19 +574,49 @@
   </div>
 </div>
 
-<!-- ===== MODAL CHANGER URL ===== -->
+<!-- ===== MODAL CHANGER ===== -->
 <div id="change-modal">
-  <div class="setup-box" style="max-width:520px;gap:20px">
+  <div class="setup-box" style="max-width:560px;gap:18px;margin:auto">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);letter-spacing:1px">
-      ⚙ Changer l'URL M3U
+      ⚙ Modifier la connexion
     </div>
-    <div class="setup-field">
-      <label>Nouveau lien M3U</label>
-      <div class="url-input-wrap">
-        <input type="password" id="change-url" placeholder="http://…" />
-        <button class="eye-btn" onclick="toggleEye('change-url','eye2')" id="eye2">👁</button>
+
+    <!-- Tabs modal -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="mtab-xtream-btn" onclick="switchModalTab('xtream')">🔑 Xtream API</button>
+      <button class="tab-btn"        id="mtab-m3u-btn"    onclick="switchModalTab('m3u')">🔗 Lien M3U</button>
+    </div>
+
+    <!-- Xtream modal -->
+    <div class="tab-panel active" id="mtab-xtream">
+      <div class="setup-field">
+        <label>Serveur / Host</label>
+        <input class="plain-input" type="text" id="change-host" placeholder="http://votreserveur.xyz:8080" />
+      </div>
+      <div class="setup-field">
+        <label>Nom d'utilisateur</label>
+        <input class="plain-input" type="text" id="change-user" placeholder="votre_username" autocomplete="off" />
+      </div>
+      <div class="setup-field">
+        <label>Mot de passe</label>
+        <div class="url-input-wrap">
+          <input type="password" id="change-pass" placeholder="votre_password" autocomplete="off" />
+          <button class="eye-btn" onclick="toggleEye('change-pass','eye-cp')" id="eye-cp">👁</button>
+        </div>
       </div>
     </div>
+
+    <!-- M3U modal -->
+    <div class="tab-panel" id="mtab-m3u">
+      <div class="setup-field">
+        <label>Nouveau lien M3U</label>
+        <div class="url-input-wrap">
+          <input type="password" id="change-url" placeholder="http://…" />
+          <button class="eye-btn" onclick="toggleEye('change-url','eye2')" id="eye2">👁</button>
+        </div>
+      </div>
+    </div>
+
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button class="icon-btn" onclick="closeChangeModal()">Annuler</button>
       <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="applyChange()">Charger</button>
@@ -501,28 +627,111 @@
 <div id="toast"></div>
 
 <script>
-  const KEY = 'iptv_m3u_url';
-  let allChannels = [], filteredChannels = [], currentGroup = 'Tous', hls = null;
+  // ─── Storage keys ───
+  const KEY_URL  = 'iptv_m3u_url';
+  const KEY_HOST = 'iptv_xtream_host';
+  const KEY_USER = 'iptv_xtream_user';
+  const KEY_PASS = 'iptv_xtream_pass';
+  const KEY_MODE = 'iptv_mode'; // 'xtream' | 'm3u'
 
-  // ── Boot ──
+  let allChannels = [], filteredChannels = [], currentGroup = 'Tous', hls = null;
+  let activeSetupTab = 'xtream';
+  let activeModalTab = 'xtream';
+
+  // ─── Boot ───
   window.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem(KEY);
-    if (saved) { hideSetup(); loadM3U(saved); }
+    const mode = localStorage.getItem(KEY_MODE);
+    if (mode === 'xtream') {
+      const host = localStorage.getItem(KEY_HOST);
+      const user = localStorage.getItem(KEY_USER);
+      const pass = localStorage.getItem(KEY_PASS);
+      if (host && user && pass) {
+        hideSetup();
+        const url = buildXtreamUrl(host, user, pass);
+        showModeBadge('Xtream', user);
+        loadM3U(url);
+        return;
+      }
+    }
+    if (mode === 'm3u') {
+      const saved = localStorage.getItem(KEY_URL);
+      if (saved) {
+        hideSetup();
+        showModeBadge('M3U', '');
+        loadM3U(saved);
+        return;
+      }
+    }
+    // Rien de sauvegardé → affiche setup
   });
 
-  // ── Setup ──
+  // ─── Build Xtream URL ───
+  function buildXtreamUrl(host, user, pass) {
+    const base = host.replace(/\/$/, '');
+    return `${base}/get.php?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}&type=m3u_plus`;
+  }
+
+  // ─── Tabs (setup screen) ───
+  function switchTab(tab) {
+    activeSetupTab = tab;
+    ['xtream','m3u'].forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+      document.getElementById('tab-' + t + '-btn').classList.toggle('active', t === tab);
+    });
+  }
+
+  // ─── Tabs (modal) ───
+  function switchModalTab(tab) {
+    activeModalTab = tab;
+    ['xtream','m3u'].forEach(t => {
+      document.getElementById('mtab-' + t).classList.toggle('active', t === tab);
+      document.getElementById('mtab-' + t + '-btn').classList.toggle('active', t === tab);
+    });
+  }
+
+  // ─── Eye toggle ───
   function toggleEye(inputId, btnId) {
     const inp = document.getElementById(inputId);
     inp.type = inp.type === 'password' ? 'text' : 'password';
     document.getElementById(btnId).textContent = inp.type === 'password' ? '👁' : '🙈';
   }
 
+  // ─── Start from Xtream ───
+  function startFromXtream() {
+    const host = document.getElementById('setup-host').value.trim();
+    const user = document.getElementById('setup-user').value.trim();
+    const pass = document.getElementById('setup-pass').value.trim();
+    if (!host) return toast('⚠ Entrez l\'adresse du serveur');
+    if (!host.startsWith('http')) return toast('⚠ L\'adresse doit commencer par http://');
+    if (!user) return toast('⚠ Entrez votre nom d\'utilisateur');
+    if (!pass) return toast('⚠ Entrez votre mot de passe');
+
+    localStorage.setItem(KEY_HOST, host);
+    localStorage.setItem(KEY_USER, user);
+    localStorage.setItem(KEY_PASS, pass);
+    localStorage.setItem(KEY_MODE, 'xtream');
+    // Nettoyage éventuel de l'ancien M3U
+    localStorage.removeItem(KEY_URL);
+
+    hideSetup();
+    showModeBadge('Xtream', user);
+    loadM3U(buildXtreamUrl(host, user, pass));
+  }
+
+  // ─── Start from M3U ───
   function startFromSetup() {
     const url = document.getElementById('setup-url').value.trim();
     if (!url) return toast('⚠ Collez votre lien M3U dans le champ');
     if (!url.startsWith('http')) return toast('⚠ Le lien doit commencer par http://');
-    localStorage.setItem(KEY, url);
+
+    localStorage.setItem(KEY_URL, url);
+    localStorage.setItem(KEY_MODE, 'm3u');
+    localStorage.removeItem(KEY_HOST);
+    localStorage.removeItem(KEY_USER);
+    localStorage.removeItem(KEY_PASS);
+
     hideSetup();
+    showModeBadge('M3U', '');
     loadM3U(url);
   }
 
@@ -530,17 +739,35 @@
     document.getElementById('setup-screen').classList.add('hidden');
   }
 
+  function showModeBadge(mode, user) {
+    const b = document.getElementById('mode-badge');
+    b.style.display = 'inline';
+    b.textContent = mode === 'Xtream' ? `🔑 ${user}` : '🔗 M3U';
+  }
+
   function resetApp() {
-    if (!confirm('Supprimer le lien sauvegardé et revenir à l\'écran de configuration ?')) return;
-    localStorage.removeItem(KEY);
+    if (!confirm('Supprimer les identifiants sauvegardés et revenir à l\'écran de configuration ?')) return;
+    [KEY_URL, KEY_HOST, KEY_USER, KEY_PASS, KEY_MODE].forEach(k => localStorage.removeItem(k));
     location.reload();
   }
 
-  // ── Change URL modal ──
+  // ─── Change modal ───
   function openChangeModal() {
-    document.getElementById('change-url').value = localStorage.getItem(KEY) || '';
+    const mode = localStorage.getItem(KEY_MODE) || 'xtream';
+    switchModalTab(mode === 'm3u' ? 'm3u' : 'xtream');
+
+    // Pré-remplir Xtream
+    document.getElementById('change-host').value = localStorage.getItem(KEY_HOST) || '';
+    document.getElementById('change-user').value = localStorage.getItem(KEY_USER) || '';
+    document.getElementById('change-pass').value = localStorage.getItem(KEY_PASS) || '';
+    document.getElementById('change-pass').type = 'password';
+    document.getElementById('eye-cp').textContent = '👁';
+
+    // Pré-remplir M3U
+    document.getElementById('change-url').value = localStorage.getItem(KEY_URL) || '';
     document.getElementById('change-url').type = 'password';
     document.getElementById('eye2').textContent = '👁';
+
     document.getElementById('change-modal').classList.add('show');
   }
 
@@ -549,14 +776,34 @@
   }
 
   function applyChange() {
-    const url = document.getElementById('change-url').value.trim();
-    if (!url) return toast('⚠ URL vide');
-    localStorage.setItem(KEY, url);
-    closeChangeModal();
-    loadM3U(url);
+    if (activeModalTab === 'xtream') {
+      const host = document.getElementById('change-host').value.trim();
+      const user = document.getElementById('change-user').value.trim();
+      const pass = document.getElementById('change-pass').value.trim();
+      if (!host || !user || !pass) return toast('⚠ Remplissez tous les champs Xtream');
+      localStorage.setItem(KEY_HOST, host);
+      localStorage.setItem(KEY_USER, user);
+      localStorage.setItem(KEY_PASS, pass);
+      localStorage.setItem(KEY_MODE, 'xtream');
+      localStorage.removeItem(KEY_URL);
+      closeChangeModal();
+      showModeBadge('Xtream', user);
+      loadM3U(buildXtreamUrl(host, user, pass));
+    } else {
+      const url = document.getElementById('change-url').value.trim();
+      if (!url) return toast('⚠ URL vide');
+      localStorage.setItem(KEY_URL, url);
+      localStorage.setItem(KEY_MODE, 'm3u');
+      localStorage.removeItem(KEY_HOST);
+      localStorage.removeItem(KEY_USER);
+      localStorage.removeItem(KEY_PASS);
+      closeChangeModal();
+      showModeBadge('M3U', '');
+      loadM3U(url);
+    }
   }
 
-  // ── M3U ──
+  // ─── M3U fetch ───
   async function loadM3U(url) {
     showLoading('Connexion au serveur…');
     try {
@@ -570,19 +817,17 @@
     }
   }
 
-async function fetchWithProxy(url) {
-  // Passe par notre route API Vercel → pas de CORS ni de mixed content
-  const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
-  
-  const r = await fetch(proxyUrl);
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({}));
-    throw new Error(err.error || `Erreur serveur ${r.status}`);
+  async function fetchWithProxy(url) {
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+    const r = await fetch(proxyUrl);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error || `Erreur serveur ${r.status}`);
+    }
+    const text = await r.text();
+    if (!text.includes('#EXTM3U')) throw new Error('Fichier M3U invalide');
+    return text;
   }
-  const text = await r.text();
-  if (!text.includes('#EXTM3U')) throw new Error('Fichier M3U invalide');
-  return text;
-}
 
   function parseM3U(text) {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
@@ -609,7 +854,7 @@ async function fetchWithProxy(url) {
     toast('✅ ' + channels.length + ' chaînes chargées');
   }
 
-  // ── Groups ──
+  // ─── Groups ───
   function buildGroups() {
     const groups = ['Tous', ...new Set(allChannels.map(c => c.group))];
     document.getElementById('groups').innerHTML = groups.map(g =>
@@ -624,7 +869,7 @@ async function fetchWithProxy(url) {
     filterChannels();
   }
 
-  // ── List ──
+  // ─── List ───
   function filterChannels() {
     const q = document.getElementById('search').value.toLowerCase();
     filteredChannels = allChannels.filter(c =>
@@ -649,7 +894,7 @@ async function fetchWithProxy(url) {
       </div>`).join('');
   }
 
-  // ── Play ──
+  // ─── Play ───
   function playChannel(idx) {
     const ch = filteredChannels[idx];
     if (!ch) return;
@@ -682,7 +927,7 @@ async function fetchWithProxy(url) {
     }
   }
 
-  // ── Helpers ──
+  // ─── Helpers ───
   function showLoading(msg) {
     document.getElementById('loading-msg').textContent = msg;
     document.getElementById('loading').classList.add('show');
@@ -706,8 +951,10 @@ async function fetchWithProxy(url) {
 
   // Enter key on setup
   document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !document.getElementById('setup-screen').classList.contains('hidden'))
-      startFromSetup();
+    if (e.key === 'Enter' && !document.getElementById('setup-screen').classList.contains('hidden')) {
+      if (activeSetupTab === 'xtream') startFromXtream();
+      else startFromSetup();
+    }
   });
 </script>
 </body>
